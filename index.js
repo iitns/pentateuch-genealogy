@@ -4,7 +4,6 @@
       Genesis:'창세기', Exodus:'출애굽기', Leviticus:'레위기', Numbers:'민수기', Deuteronomy:'신명기'
     }[book] || book);
     const displayChapter = (ch) => {
-      // ex) "Genesis 5" -> "창세기 5장", "Genesis 37-50" -> "창세기 37–50장"
       const m = ch.match(/^([A-Za-z]+)\s+(\d+(?:-\d+)?)$/);
       if (!m) return ch;
       const [, book, num] = m;
@@ -134,11 +133,7 @@
     // Collapse deep subtrees by default (leave major path visible)
     root.children && root.children.forEach(collapseDeepButKeepMajor);
     function collapse(d) {
-      if (d.children) {
-        d._children = d.children;
-        d._children.forEach(collapse);
-        d.children = null;
-      }
+      if (d.children) { d._children = d.children; d._children.forEach(collapse); d.children = null; }
     }
     function expand(d) {
       if (d._children) { d.children = d._children; d._children = null; }
@@ -163,12 +158,12 @@
       const link = linkGroup.selectAll('path.link').data(links, d => d.target.data.id);
       link.enter().append('path')
         .attr('class', 'link')
-        .attr('d', d => diagonal({source: source, target: source}))
+        .attr('d', () => diagonal({ source: {x: source.x0 ?? 0, y: source.y0 ?? 0}, target: {x: source.x0 ?? 0, y: source.y0 ?? 0} }))
         .transition().duration(duration)
         .attr('d', d => diagonal(d));
       link.transition().duration(duration).attr('d', d => diagonal(d));
       link.exit().transition().duration(duration)
-        .attr('d', d => diagonal({source: source, target: source}))
+        .attr('d', () => diagonal({ source: {x: source.x ?? source.x0 ?? 0, y: source.y ?? source.y0 ?? 0}, target: {x: source.x ?? source.x0 ?? 0, y: source.y ?? source.y0 ?? 0} }))
         .remove();
 
       // NODES
@@ -176,9 +171,9 @@
 
       const nodeEnter = node.enter().append('g')
         .attr('class', 'node')
-        .attr('transform', d => `translate(${source.y0},${source.x0})`)
-        .on('click', (_, d) => { toggle(d); update(d); })
-        .on('mouseenter', (ev, d) => showTooltip(ev, d))
+        .attr('transform', () => `translate(${source.y0 ?? 0},${source.x0 ?? 0})`)
+        .on('click', (event, d) => { toggle(d); update(d); })
+        .on('mouseenter', (event, d) => showTooltip(event, d))
         .on('mouseleave', hideTooltip);
 
       nodeEnter.append('circle')
@@ -202,7 +197,7 @@
 
       // EXIT
       node.exit().transition().duration(duration)
-        .attr('transform', d => `translate(${source.y},${source.x})`)
+        .attr('transform', () => `translate(${source.y ?? source.y0 ?? 0},${source.x ?? source.x0 ?? 0})`)
         .remove();
 
       nodes.forEach(d => { d.x0 = d.x; d.y0 = d.y; });
@@ -251,9 +246,9 @@
       link.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5V6.5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v13l-7-3-7 3Z"/></svg>
                         <span>${displayChapter(ch)}</span>
                         <span class="text-slate-500">(${count})</span>`;
-      link.addEventListener('click', (ev) => {
-        if (ev.metaKey || ev.ctrlKey) return;
-        ev.preventDefault();
+      link.addEventListener('click', (event) => {
+        if (event.metaKey || event.ctrlKey) return;
+        event.preventDefault();
         highlightByChapter(ch);
       });
       chaptersHost.appendChild(link);
@@ -320,3 +315,4 @@
 
     // Initial render
     update(root);
+
