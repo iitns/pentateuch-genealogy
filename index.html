@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>오경(창출레민신) 계보도 — 인터랙티브 트리</title>
+  <!-- TailwindCSS (CDN) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- D3 v7 -->
+  <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+  <style>
+    .node circle { transition: fill .25s ease, stroke .25s ease; }
+    .node text { user-select: none; pointer-events: none; font-size: 12px; }
+    .node.highlight circle { stroke-width: 3px; }
+    .link { fill: none; stroke: #cbd5e1; stroke-width: 1.25px; }
+    .link.highlight { stroke: #3b82f6; stroke-width: 2px; }
+    .chapter-chip { cursor: pointer; }
+    .chapter-chip:hover { filter: brightness(.95); }
+    .btn { display:inline-flex; align-items:center; gap:.5rem; border-radius:.75rem; padding:.5rem .75rem; border:1px solid #cbd5e1; background:#fff; box-shadow:0 1px 1px rgba(0,0,0,.04); }
+    .btn-ghost { display:inline-flex; align-items:center; gap:.5rem; border-radius:.75rem; padding:.5rem .75rem; }
+    .kbd { border:1px solid #cbd5e1; border-radius:.25rem; padding:0 .25rem; font-size:.75rem; background:white; }
+    .pill { display:inline-flex; align-items:center; gap:.25rem; padding:.25rem .5rem; border-radius:9999px; font-size:.75rem; border:1px solid #cbd5e1; }
+    .tooltip { position: absolute; pointer-events: none; background: white; border: 1px solid #e2e8f0; padding: 6px 8px; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,.08); font-size: 12px; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+  <div class="max-w-[1600px] mx-auto h-screen flex flex-col">
+    <!-- Header -->
+    <header class="flex items-center justify-between gap-4 px-4 sm:px-6 py-3 border-b bg-white/80 backdrop-blur sticky top-0 z-20">
+      <div class="flex items-center gap-3">
+        <h1 class="text-xl sm:text-2xl font-semibold">오경 계보도</h1>
+        <span class="hidden sm:inline pill text-slate-600">아담과 하와 → 자손</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="relative">
+          <input id="searchInput" type="text" placeholder="인물 검색…" class="peer w-56 sm:w-72 rounded-xl border border-slate-300 px-3 py-2 pr-9 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <div class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          </div>
+        </div>
+        <button id="resetBtn" class="btn">보기 초기화</button>
+        <button id="expandAllBtn" class="btn">모두 펼치기</button>
+        <button id="collapseAllBtn" class="btn">모두 접기</button>
+        <a target="_blank" href="https://www.biblegateway.com/" class="btn-ghost" title="Bible Gateway (외부)">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg>
+          <span class="hidden sm:inline">Gateway</span>
+        </a>
+      </div>
+    </header>
+
+    <!-- Main split -->
+    <div class="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-0">
+      <!-- Canvas Area -->
+      <section class="lg:col-span-3 relative">
+        <svg id="tree" class="w-full h-full"></svg>
+        <div id="tooltip" class="tooltip hidden"></div>
+      </section>
+
+      <!-- Right Panel -->
+      <aside class="lg:col-span-1 border-l bg-white overflow-y-auto">
+        <div class="p-4 sm:p-6 space-y-6">
+          <div>
+            <h2 class="text-lg font-semibold mb-3">이 데모에 포함된 성경 장</h2>
+            <div id="chapters" class="flex flex-wrap gap-2"></div>
+            <p class="text-xs text-slate-500 mt-2">장을 클릭하면 해당 인물을 강조하고 중앙에 맞춥니다. <span class="hidden sm:inline"><span class="kbd">/</span> 를 누르면 검색창으로 이동.</span></p>
+          </div>
+          <div>
+            <h3 class="font-semibold mb-2">범례</h3>
+            <div class="space-y-2 text-sm">
+              <div class="flex items-center gap-2"><span class="inline-block w-3 h-3 rounded-full bg-blue-500"></span> 선택/매치됨</div>
+              <div class="flex items-center gap-2"><span class="inline-block w-3 h-3 rounded-full bg-slate-400"></span> 인물</div>
+              <div class="flex items-center gap-2"><span class="inline-block w-4 h-[2px] bg-slate-300"></span> 부모 → 자녀</div>
+            </div>
+          </div>
+          <div>
+            <h3 class="font-semibold mb-2">설명</h3>
+            <p class="text-sm text-slate-600">오경(창세기~신명기)의 대표적인 계보 일부를 간략화하여 단일 HTML 파일로 시각화했습니다.</p>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <script type="text/javascript" src="index.js"></script>
+</body>
+</html>
+
