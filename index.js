@@ -92,25 +92,24 @@
           ] }
         ] }
       ]
-    }]
-    };
+    }]};
 
-    /* ---------- Chapter collection & mapping ---------- */
-    function collectChapters(root) {
+    /* ---------- Chapter list is by ID, not node refs ---------- */
+    function collectChapters(rootObj) {
       const set = new Set();
-      d3.hierarchy(root).each(d => (d.data.chapters || []).forEach(c => set.add(c)));
+      d3.hierarchy(rootObj).each(d => (d.data.chapters || []).forEach(c => set.add(c)));
       const parts = [...set].map(s => {
         const [book] = s.split(/\s+(?=\d+)/);
         return { raw: s, book: book, n: parseInt(s.replace(/[^0-9]/g,'') || '0', 10) };
       });
       return parts.sort((a,b) => (a.book.localeCompare(b.book) || a.n - b.n)).map(o => o.raw);
     }
-    function mapChapterToNodes(root) {
+    function mapChapterToIds(rootObj) {
       const map = new Map();
-      d3.hierarchy(root).each(d => {
+      d3.hierarchy(rootObj).each(d => {
         (d.data.chapters || []).forEach(ch => {
           if (!map.has(ch)) map.set(ch, []);
-          map.get(ch).push(d);
+          map.get(ch).push(d.data.id);
         });
       });
       return map;
@@ -127,10 +126,18 @@
     });
     svg.call(zoom);
 
+    // Live hierarchy root
     let root = d3.hierarchy(data);
     root.x0 = 0; root.y0 = 0;
 
-    // Collapse deep subtrees by default (leave major path visible)
+    // Build live id->node index (rebuild after each update)
+    let idToNode = new Map();
+    function rebuildIdIndex() {
+      idToNode.clear();
+      root.each(d => idToNode.set(d.data.id, d));
+    }
+
+    // Collapse deep subtrees by default
     root.children && root.children.forEach(collapseDeepButKeepMajor);
     function collapse(d) {
       if (d.children) { d._children = d.children; d._children.forEach(collapse); d.children = null; }
@@ -182,12 +189,10 @@
         .attr('stroke', '#64748b');
 
       nodeEnter.append('text')
-        .attr('dy', 3)
-        .attr('x', 10)
+        .attr('dy', 3).attr('x', 10)
         .text(d => d.data.name)
         .attr('fill', '#0f172a');
 
-      // UPDATE
       const nodeUpdate = nodeEnter.merge(node);
       nodeUpdate.transition().duration(duration)
         .attr('transform', d => `translate(${d.y},${d.x})`);
@@ -195,13 +200,15 @@
         .attr('r', 8)
         .attr('fill', d => d._children ? '#93c5fd' : '#e2e8f0');
 
-      // EXIT
       node.exit().transition().duration(duration)
         .attr('transform', () => `translate(${source.y ?? source.y0 ?? 0},${source.x ?? source.x0 ?? 0})`)
         .remove();
 
       nodes.forEach(d => { d.x0 = d.x; d.y0 = d.y; });
+
+      // keep SVG fitted and index fresh
       fitToContent(nodes);
+      rebuildIdIndex();
     }
 
     function diagonal(d) {
@@ -231,25 +238,25 @@
     }
     function hideTooltip() { tooltip.classList.add('hidden'); }
 
-    // Right-panel chapters
+    // Right-panel chapters (store IDs, then resolve to live nodes)
     const allChapters = collectChapters(data);
-    const chapterToNodes = mapChapterToNodes(data);
+    const chapterToIds = mapChapterToIds(data);
     const chaptersHost = document.getElementById('chapters');
 
     for (const ch of allChapters) {
+      const ids = chapterToIds.get(ch) || [];
       const link = document.createElement('a');
       link.href = BGW(ch);
       link.target = '_blank';
       link.rel = 'noopener';
       link.className = 'chapter-chip pill bg-white';
-      const count = chapterToNodes.get(ch)?.length || 0;
       link.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5V6.5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v13l-7-3-7 3Z"/></svg>
                         <span>${displayChapter(ch)}</span>
-                        <span class="text-slate-500">(${count})</span>`;
+                        <span class="text-slate-500">(${ids.length})</span>`;
       link.addEventListener('click', (event) => {
-        if (event.metaKey || event.ctrlKey) return;
+        if (event.metaKey || event.ctrlKey) return; // allow open in new tab
         event.preventDefault();
-        highlightByChapter(ch);
+        highlightByChapterIds(ids);
       });
       chaptersHost.appendChild(link);
     }
@@ -259,10 +266,12 @@
       nodeGroup.selectAll('g.node').classed('highlight', false);
       linkGroup.selectAll('path.link').classed('highlight', false);
     }
-    function highlightByChapter(ch) {
+    function highlightByChapterIds(idList) {
       clearHighlights();
-      const nodes = chapterToNodes.get(ch) || [];
+      // resolve to live nodes
+      const nodes = idList.map(id => idToNode.get(id)).filter(Boolean);
       if (!nodes.length) return;
+      // ensure visible
       nodes.forEach(n => { let p = n.parent; while (p) { expand(p); p = p.parent; } });
       update(nodes[0]);
       nodeGroup.selectAll('g.node').filter(d => nodes.includes(d)).classed('highlight', true);
@@ -279,7 +288,7 @@
       d3.select('#tree').transition().duration(400).call(zoom.transform, transform);
     }
 
-    // Search
+    // Search (works on live tree)
     const searchInput = document.getElementById('searchInput');
     window.addEventListener('keydown', (e) => {
       if (e.key === '/' && document.activeElement !== searchInput) {

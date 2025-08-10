@@ -4,9 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>오경(창출레민신) 계보도 — 인터랙티브 트리</title>
-  <!-- TailwindCSS (CDN) -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- D3 v7 -->
   <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
   <style>
     .node circle { transition: fill .25s ease, stroke .25s ease; }
@@ -25,7 +23,6 @@
 </head>
 <body class="bg-slate-50 text-slate-800">
   <div class="max-w-[1600px] mx-auto h-screen flex flex-col">
-    <!-- Header -->
     <header class="flex items-center justify-between gap-4 px-4 sm:px-6 py-3 border-b bg-white/80 backdrop-blur sticky top-0 z-20">
       <div class="flex items-center gap-3">
         <h1 class="text-xl sm:text-2xl font-semibold">오경 계보도</h1>
@@ -48,7 +45,6 @@
       </div>
     </header>
 
-    <!-- Main split -->
     <div class="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-0">
       <section class="lg:col-span-3 relative">
         <svg id="tree" class="w-full h-full"></svg>
@@ -78,7 +74,6 @@
       </aside>
     </div>
   </div>
-
   <script type="text/javascript" src="index.js"></script>
 </body>
 </html>
